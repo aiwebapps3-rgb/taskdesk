@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "taskdesk": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "TASKDESK_DB_PATH": "./data/taskdesk.db",
+        "TASKDESK_AUDIT_PATH": "./logs/audit.jsonl",
+        "TASKDESK_TIMEZONE": "Asia/Karachi",
+        "TASKDESK_TRANSPORT": "stdio"
+      }
+    }
+  }
+}

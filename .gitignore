@@ -1,0 +1,26 @@
+node_modules/
+dist/
+coverage/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# local data and logs
+data/
+logs/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# personal Claude Code settings
+.claude/settings.local.json
+CLAUDE.local.md
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
