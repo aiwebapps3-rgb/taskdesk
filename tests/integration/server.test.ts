@@ -115,4 +115,12 @@ describe("TaskDesk over stdio", () => {
     expect(lines.some((l) => l.tool === "delete_task" && l.outcome === "preview")).toBe(true);
     expect(lines.every((l) => typeof l.durationMs === "number")).toBe(true);
   });
+
+  it("audits calls the SDK rejects before any handler runs", async () => {
+    await call("create_task", { title: "x", due_date: "next friday" });
+    await call("no_such_tool");
+    const lines = readFileSync(path.join(dir, "audit.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(lines.some((l) => l.tool === "create_task" && l.outcome === "invalid" && /due_date/.test(l.message))).toBe(true);
+    expect(lines.some((l) => l.tool === "no_such_tool" && l.outcome === "invalid")).toBe(true);
+  });
 });

@@ -1,6 +1,9 @@
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { loadConfig } from "../../src/config.js";
-import { MemoryAuditSink, withAudit } from "../../src/lib/audit.js";
+import { auditRejectedToolCalls, MemoryAuditSink, withAudit } from "../../src/lib/audit.js";
 import { dateInZone, isIsoDate } from "../../src/lib/dates.js";
 import { NotFoundError } from "../../src/lib/errors.js";
 import { redact, REDACTED } from "../../src/lib/redact.js";
@@ -80,6 +83,41 @@ describe("withAudit", () => {
     expect(text).not.toContain("path.db");
     expect(text).toMatch(/ref [0-9a-f]{8}/);
     expect(sink.entries[0]?.outcome).toBe("bug");
+  });
+});
+
+describe("auditRejectedToolCalls", () => {
+  const schemas = new Map([["create_task", z.object({ title: z.string(), due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })]]);
+  const setup = () => {
+    const seen: JSONRPCMessage[] = [];
+    const transport: Transport = { start: async () => {}, send: async () => {}, close: async () => {} };
+    transport.onmessage = (m) => seen.push(m); // stands in for a handler set before ours
+    const sink = new MemoryAuditSink();
+    auditRejectedToolCalls(transport, sink, schemas);
+    const deliver = (params: Record<string, unknown>) =>
+      transport.onmessage?.({ jsonrpc: "2.0", id: 1, method: "tools/call", params });
+    return { seen, sink, deliver };
+  };
+
+  it("audits input that fails the schema, with redacted args, and still passes the message on", () => {
+    const { seen, sink, deliver } = setup();
+    deliver({ name: "create_task", arguments: { title: "x", due_date: "next friday", password: "p" } });
+    expect(seen).toHaveLength(1);
+    expect(sink.entries[0]).toMatchObject({ tool: "create_task", outcome: "invalid", args: { password: REDACTED } });
+    expect(sink.entries[0]?.message).toMatch(/^due_date:/);
+  });
+
+  it("audits unknown tools", () => {
+    const { sink, deliver } = setup();
+    deliver({ name: "drop_tables", arguments: {} });
+    expect(sink.entries[0]).toMatchObject({ tool: "drop_tables", outcome: "invalid", message: "Unknown tool drop_tables" });
+  });
+
+  it("leaves valid calls to withAudit", () => {
+    const { seen, sink, deliver } = setup();
+    deliver({ name: "create_task", arguments: { title: "x", due_date: "2026-10-30" } });
+    expect(sink.entries).toHaveLength(0);
+    expect(seen).toHaveLength(1);
   });
 });
 

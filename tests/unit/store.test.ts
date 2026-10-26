@@ -56,11 +56,11 @@ describe("SqliteTaskStore", () => {
   });
 
   it("filters by status and assignee, case-insensitively", () => {
-    store.createTask({ title: "a", assignee: "Usman", status: "blocked" }, NOW);
+    store.createTask({ title: "a", assignee: "Saud", status: "blocked" }, NOW);
     store.createTask({ title: "b", assignee: "Sara", status: "blocked" }, NOW);
-    store.createTask({ title: "c", assignee: "usman", status: "todo" }, NOW);
+    store.createTask({ title: "c", assignee: "saud", status: "todo" }, NOW);
     expect(store.listTasks({ status: "blocked", limit: 10 }).map((t) => t.title)).toEqual(["a", "b"]);
-    expect(store.listTasks({ assignee: "USMAN", limit: 10 })).toHaveLength(2);
+    expect(store.listTasks({ assignee: "SAUD", limit: 10 })).toHaveLength(2);
     expect(store.countTasks({ status: "blocked" })).toBe(2);
   });
 

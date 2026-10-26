@@ -43,6 +43,7 @@ TaskDesk is a small layered service. Each layer has one job and only talks to th
 | Dependency injection | `createServer({ service, audit, config })` | Tests pass an in-memory store, so they are fast and never touch real data. |
 | Tool registry | `src/tools/index.ts` exports an array of `ToolDefinition` | Adding a tool is one file plus one line. The server loops over the list, so every tool gets the same wrapping. |
 | Decorator (middleware) | `withAudit(name, handler)` in `src/lib/audit.ts` | Logging, timing, redaction and error mapping are applied to every tool the same way. No tool can forget them. |
+| Transport observer | `auditRejectedToolCalls(transport, ...)` in `src/lib/audit.ts` | The SDK rejects invalid input before any handler runs, so `withAudit` never sees it. This watches incoming `tools/call` messages and logs those as `invalid`. |
 | Typed domain errors | `src/lib/errors.ts` | `NotFoundError`, `ValidationError`, `ConfirmationRequiredError` map to short agent-friendly messages. Raw errors never leak. |
 | Preview then commit | service write methods | Dry run and delete confirmation share one code path: build the plan, return it, only write when allowed. |
 | Strategy | transport selection in `src/index.ts` | stdio for local use, Streamable HTTP for a hosted version, same server underneath. |

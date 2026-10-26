@@ -9,7 +9,7 @@ export const listTasks = defineTool({
     "Results are sorted blocked, in progress, todo, then done, and by priority. Returns at most `limit` tasks plus the total count.",
   inputSchema: {
     status: fields.status.optional(),
-    assignee: z.string().min(1).max(100).optional().describe("Only tasks assigned to this person (case-insensitive), for example 'Usman'."),
+    assignee: z.string().min(1).max(100).optional().describe("Only tasks assigned to this person (case-insensitive), for example 'Saud'."),
     limit: z.number().int().min(1).max(100).default(20).describe("Maximum tasks to return, 1 to 100. Default 20."),
     offset: z.number().int().min(0).default(0).describe("Skip this many tasks, for paging. Default 0."),
   },

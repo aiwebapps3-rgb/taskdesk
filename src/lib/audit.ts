@@ -1,12 +1,14 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import { isJSONRPCRequest, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { z } from "zod";
 import { DomainError } from "./errors.js";
 import { logger } from "./logger.js";
 import { redact } from "./redact.js";
 
-export type Outcome = "ok" | "preview" | "error" | "bug";
+export type Outcome = "ok" | "preview" | "error" | "invalid" | "bug";
 
 export interface AuditEntry {
   ts: string;
@@ -49,6 +51,42 @@ export class MemoryAuditSink implements AuditSink {
 export interface ToolOutput {
   text: string;
   outcome?: "ok" | "preview";
+}
+
+/**
+ * The SDK checks tool input against the schema before the handler runs, so a rejected
+ * call never reaches withAudit. This watches incoming tools/call requests and audits the
+ * ones the SDK will reject (unknown tool or input that fails the tool's schema).
+ * Call it before server.connect(): the SDK keeps an existing onmessage and calls it first.
+ */
+export function auditRejectedToolCalls(
+  transport: Transport,
+  sink: AuditSink,
+  schemas: ReadonlyMap<string, z.ZodType>,
+): void {
+  const previous = transport.onmessage;
+  transport.onmessage = (message, extra) => {
+    if (isJSONRPCRequest(message) && message.method === "tools/call") {
+      const name = String(message.params?.name ?? "");
+      const args = message.params?.arguments ?? {};
+      const schema = schemas.get(name);
+      const parsed = schema?.safeParse(args);
+      if (!schema || (parsed && !parsed.success)) {
+        const reason = parsed && !parsed.success
+          ? parsed.error.issues.map((i) => `${i.path.join(".") || "input"}: ${i.message}`).join("; ")
+          : `Unknown tool ${name}`;
+        sink.write({
+          ts: new Date().toISOString(),
+          tool: name,
+          args: redact(args),
+          outcome: "invalid",
+          message: reason,
+          durationMs: 0,
+        });
+      }
+    }
+    previous?.(message, extra);
+  };
 }
 
 /**

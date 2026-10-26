@@ -11,7 +11,7 @@ export const createTask = defineTool({
     title: z.string().min(1).max(200).describe("Short task title, up to 200 characters, for example 'Set up Notion connector'."),
     description: z.string().max(4000).optional().describe("Optional details, up to 4000 characters."),
     priority: fields.priority.default("medium"),
-    assignee: z.string().min(1).max(100).optional().describe("Person responsible, for example 'Usman'."),
+    assignee: z.string().min(1).max(100).optional().describe("Person responsible, for example 'Saud'."),
     due_date: fields.date.optional(),
     dry_run: fields.dryRun,
   },

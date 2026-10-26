@@ -32,7 +32,7 @@ TaskDesk gives an agent (Claude Code, Claude Desktop or any MCP client) eight to
 | Leaking internals | Expected errors return short messages (`Task 9 not found.`). Unexpected ones return a reference id; details go to stderr only. |
 | Leaking secrets | Config comes from env vars. The audit log redacts sensitive keys and key-shaped strings. |
 | Breaking the stdio protocol | Nothing writes to stdout. Blocked by an ESLint rule and a Claude Code hook. |
-| Not knowing what the agent did | Every tool call goes to `logs/audit.jsonl` with time, tool, redacted arguments, outcome and duration. |
+| Not knowing what the agent did | Every tool call goes to `logs/audit.jsonl` with time, tool, redacted arguments, outcome and duration, including calls rejected by validation (`outcome: "invalid"`). |
 
 ## Requirements
 
@@ -46,6 +46,10 @@ npm install
 npm run build
 npm run seed
 ```
+
+**Windows without Visual Studio:** if `npm install` fails with a `node-gyp` "Could not find any Visual Studio installation" error, run `npm install --ignore-scripts` instead. `better-sqlite3` 13 ships a ready-made `win32-x64` binary inside the package, but npm still runs `node-gyp`, which looks for Visual Studio before it checks for that binary. Skipping install scripts loads the bundled binary directly.
+
+**PowerShell says "running scripts is disabled":** run `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned` once, or use `npm.cmd` instead of `npm`.
 
 Optional: copy `.env.example` to `.env` to change paths, time zone or transport. The defaults work without it.
 
@@ -65,6 +69,19 @@ npm run inspect
 - `/daily-standup`
 
 More cases with expected results are in `tests/agent-cases.md`.
+
+**Claude Desktop:** open Settings → Developer → Edit Config and add this at the top level of `claude_desktop_config.json`, using your own path to the repo. Then fully quit and reopen Claude Desktop.
+
+```json
+"mcpServers": {
+  "taskdesk": {
+    "command": "node",
+    "args": ["C:\\path\\to\\task_mcp\\dist\\index.js"]
+  }
+}
+```
+
+The server finds `data/` and `logs/` relative to its own folder, so no other settings are needed.
 
 **HTTP mode** (optional, for a hosted setup):
 

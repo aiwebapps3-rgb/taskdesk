@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { withAudit, type AuditSink } from "./lib/audit.js";
 import { registerDailyStandupPrompt } from "./prompts/dailyStandup.js";
 import { registerTaskResource } from "./resources/taskResource.js";
@@ -7,6 +8,11 @@ import { TOOLS } from "./tools/index.js";
 
 export const SERVER_NAME = "taskdesk";
 export const SERVER_VERSION = "0.1.0";
+
+/** Each tool's input schema by name, for auditing calls the SDK rejects. */
+export const TOOL_INPUT_SCHEMAS: ReadonlyMap<string, z.ZodType> = new Map(
+  TOOLS.map((tool) => [tool.name, z.object(tool.inputSchema)]),
+);
 
 export interface ServerDeps {
   service: TaskService;

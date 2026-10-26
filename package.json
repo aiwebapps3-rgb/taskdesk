@@ -16,7 +16,7 @@
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
   },
   "keywords": [],
-  "author": "Usman Ali",
+  "author": "Saud Shahid",
   "license": "MIT",
   "type": "module",
   "dependencies": {

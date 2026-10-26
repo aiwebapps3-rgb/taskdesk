@@ -4,9 +4,9 @@ import { createServer as createHttpServer, type IncomingMessage, type ServerResp
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { loadConfig, type Config } from "./config.js";
-import { JsonlAuditSink } from "./lib/audit.js";
+import { auditRejectedToolCalls, JsonlAuditSink, type AuditSink } from "./lib/audit.js";
 import { logger, setLogLevel } from "./lib/logger.js";
-import { createServer, SERVER_VERSION } from "./server.js";
+import { createServer, SERVER_VERSION, TOOL_INPUT_SCHEMAS } from "./server.js";
 import { TaskService } from "./services/taskService.js";
 import { SqliteTaskStore } from "./store/sqliteTaskStore.js";
 
@@ -36,12 +36,14 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 
   if (config.transport === "http") {
-    await startHttp(config, () => createServer({ service, audit }));
+    await startHttp(config, audit, () => createServer({ service, audit }));
   } else {
     const server = createServer({ service, audit });
     // When the client closes our stdin, it is done with us.
     process.stdin.on("close", () => shutdown("stdin closed"));
-    await server.connect(new StdioServerTransport());
+    const transport = new StdioServerTransport();
+    auditRejectedToolCalls(transport, audit, TOOL_INPUT_SCHEMAS);
+    await server.connect(transport);
     logger.info(`TaskDesk ${SERVER_VERSION} ready on stdio (db ${config.dbPath}, tz ${config.timezone})`);
   }
 }
@@ -51,7 +53,11 @@ async function main(): Promise<void> {
  * Protected by a bearer token for the demo. A real shared deployment should use
  * OAuth per user as described in the MCP authorization spec.
  */
-async function startHttp(config: Config, makeServer: () => ReturnType<typeof createServer>): Promise<void> {
+async function startHttp(
+  config: Config,
+  audit: AuditSink,
+  makeServer: () => ReturnType<typeof createServer>,
+): Promise<void> {
   const expected = Buffer.from(`Bearer ${config.httpToken ?? ""}`);
   const authorized = (req: IncomingMessage) => {
     const got = Buffer.from(req.headers.authorization ?? "");
@@ -78,6 +84,7 @@ async function startHttp(config: Config, makeServer: () => ReturnType<typeof cre
       void transport.close();
       void server.close();
     });
+    auditRejectedToolCalls(transport, audit, TOOL_INPUT_SCHEMAS);
     try {
       await server.connect(transport);
       await transport.handleRequest(req, res);
